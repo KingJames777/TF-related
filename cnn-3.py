@@ -3,9 +3,9 @@ from second import *
 X_train, y_train, X_val, y_val, X_test, y_test = get_CIFAR10_data(49000, 1000, 0)
 
 learning_rate = 1e-3
-decay_every = 100
+decay_every = 300
 decay = 0.95
-regularization = 5e-3
+regularization = 1e-3
 
 X = tf.placeholder('float32', [None, 32, 32, 3])
 y = tf.placeholder('int64', [None])
@@ -41,7 +41,7 @@ pool1 = tf.nn.max_pool(relu1, [1,2,2,1], [1,2,2,1], 'VALID')
 conv2 = tf.nn.conv2d(pool1, W_conv2, [1,1,1,1], 'SAME') + b_conv2  
 bn2 = tf.layers.batch_normalization(conv2,training = is_training)
 relu2 = tf.nn.relu(bn2)
-pool2 = tf.nn.max_pool(relu2, [1,2,2,1], [1,2,2,1], 'VALID')  
+pool2 = tf.nn.max_pool(relu2, [1,2,2,1], [1,2,2,1], 'VALID')
 
 conv3 = tf.nn.conv2d(pool2, W_conv3, [1,1,1,1], 'SAME') + b_conv3  
 bn3 = tf.layers.batch_normalization(conv3,training = is_training)
@@ -55,8 +55,11 @@ y_out = tf.matmul(fc2, W3) + b3
 mean_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(tf.one_hot(y,10), y_out))
 mean_loss += regularization * (tf.nn.l2_loss(W2) + tf.nn.l2_loss(W1) + tf.nn.l2_loss(W3) +
                                tf.nn.l2_loss(W_conv3) + tf.nn.l2_loss(W_conv2) + tf.nn.l2_loss(W_conv1))
+
 lr = tf.train.exponential_decay(learning_rate, global_step, decay_every, decay, True)
-optimizer = tf.train.AdamOptimizer(lr).minimize(mean_loss, global_step = global_step)
+extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)  ## Keep in mind!!!
+with tf.control_dependencies(extra_update_ops):
+    optimizer = tf.train.AdamOptimizer(lr).minimize(mean_loss, global_step = global_step)
 
 def run_model(session, predict, loss_val, X_, y_, epochs=1, batch_size=64,
               print_every=100, training=None, plot_losses=False):
@@ -105,6 +108,6 @@ def run_model(session, predict, loss_val, X_, y_, epochs=1, batch_size=64,
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
-    run_model(sess, y_out, mean_loss, X_train, y_train, 4, 64, 200, optimizer, True)
+    run_model(sess, y_out, mean_loss, X_train, y_train, 3, 64, 200, optimizer, True)
     run_model(sess, y_out, mean_loss, X_val, y_val)
 ##    run_model(sess,y_out,mean_loss,X_test,y_test)
